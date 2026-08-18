@@ -46,6 +46,7 @@ class ExpansionResult:
 
     original_query: str
     expanded_query: str
+    europe_pmc_query: str = ""
     matched_concepts: list[str] = field(default_factory=list)
     matched_brands: list[str] = field(default_factory=list)
     added_terms: list[str] = field(default_factory=list)
@@ -246,6 +247,7 @@ class QueryExpander:
             clauses.append(pico_clause)
 
         result.expanded_query = " AND ".join(clauses) if len(clauses) > 1 else clauses[0]
+        result.europe_pmc_query = _to_europe_pmc_dialect(result.expanded_query)
 
         if not groups and not pico_clause:
             result.notes.append(
@@ -299,6 +301,47 @@ class QueryExpander:
         if not parts:
             return None
         return " AND ".join(parts)
+
+
+
+def _to_europe_pmc_dialect(pubmed_query: str) -> str:
+    """Translate a PubMed-syntax query into Europe PMC search syntax.
+
+    PubMed field tags (``"term"[Title/Abstract]``, ``"term"[MeSH Terms]``)
+    are not understood by Europe PMC: sending them through unchanged makes
+    every expanded search return zero hits. Europe PMC uses prefixed
+    fields instead (``TITLE_ABS:"term"``, ``MESH:"term"``).
+    """
+    if not pubmed_query:
+        return ""
+
+    field_map = {
+        "title/abstract": "TITLE_ABS",
+        "tiab": "TITLE_ABS",
+        "title": "TITLE",
+        "mesh terms": "MESH",
+        "mesh": "MESH",
+        "author": "AUTH",
+        "journal": "JOURNAL",
+        "publication type": "PUB_TYPE",
+        "pt": "PUB_TYPE",
+    }
+
+    def _replace(match: re.Match[str]) -> str:
+        term = match.group("term")
+        tag = match.group("tag").strip().lower()
+        prefix = field_map.get(tag)
+        if prefix is None:
+            # Unknown tag: keep the term as plain text rather than
+            # emitting syntax Europe PMC would reject.
+            return f'"{term}"'
+        return f'{prefix}:"{term}"'
+
+    return re.sub(
+        r'"(?P<term>[^"]+)"\s*\[(?P<tag>[^\]]+)\]',
+        _replace,
+        pubmed_query,
+    )
 
 
 def _free_text_clause(value: str | None) -> str | None:

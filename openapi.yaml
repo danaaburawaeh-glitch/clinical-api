@@ -34,8 +34,8 @@ info:
   version: 1.0.0
 
 servers:
-  - url: https://evidence.example.com
-    description: Replace with your deployed HTTPS base URL
+  - url: https://clinical-api-production-83d8.up.railway.app
+    description: Production deployment (Railway)
 
 paths:
 

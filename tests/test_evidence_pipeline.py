@@ -469,3 +469,32 @@ def test_manufacturer_conflict_never_says_ignore_the_ifu():
 def test_manufacturer_conflict_none_without_both_sides():
     assert detect_manufacturer_conflict([], [make_record()]) is None
     assert detect_manufacturer_conflict([make_record()], []) is None
+
+
+# --- Europe PMC dialect (regression) ---------------------------------
+# The orchestrator used to send PubMed field tags ("term"[Title/Abstract])
+# straight to Europe PMC, which does not understand them and silently
+# returned zero hits for every expanded query.
+
+def test_europe_pmc_query_has_no_pubmed_field_tags():
+    from app.evidence.query_expander import get_query_expander
+
+    expander = get_query_expander()
+    for query in (
+        "immediate dentin sealing",
+        "lithium disilicate veneer bonding protocol",
+        "zirconia hydrofluoric acid etching",
+    ):
+        result = expander.expand(query)
+        assert "[Title/Abstract]" not in result.europe_pmc_query
+        assert "[MeSH Terms]" not in result.europe_pmc_query
+        assert result.europe_pmc_query, "Europe PMC query must not be empty"
+
+
+def test_europe_pmc_dialect_maps_known_field_tags():
+    from app.evidence.query_expander import _to_europe_pmc_dialect
+
+    assert _to_europe_pmc_dialect('"veneer"[Title/Abstract]') == 'TITLE_ABS:"veneer"'
+    assert _to_europe_pmc_dialect('"Dental Bonding"[MeSH Terms]') == 'MESH:"Dental Bonding"'
+    # An unrecognised tag degrades to plain text, never to invalid syntax.
+    assert _to_europe_pmc_dialect('"x"[Nonsense Field]') == '"x"'

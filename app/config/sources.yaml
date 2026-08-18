@@ -817,3 +817,51 @@ sources:
     allowed_for: [technical_manual, product_specifications, compatibility, indications]
     forbidden_for: [proving_clinical_superiority, comparative_effectiveness]
     trust_tier: manufacturer
+
+  kerr:
+    domain: kerrdental.com
+    include_subdomains: true
+    category: manufacturer
+    specialties: [restorative, prosthodontics, endodontics, biomaterials]
+    allowed_for: [IFU, product_specifications, composition, indications, contraindications, application_protocol, cementation_protocol, surface_treatment, storage]
+    forbidden_for: [proving_clinical_superiority, comparative_effectiveness]
+    trust_tier: manufacturer
+    notes: >
+      ADDED after an NX3 lookup was refused because no Kerr domain was
+      allowlisted. Kerr publishes NX3, OptiBond and Harmonize IFUs here.
+
+  coltene:
+    domain: coltene.com
+    include_subdomains: true
+    category: manufacturer
+    specialties: [restorative, endodontics, biomaterials]
+    allowed_for: [IFU, product_specifications, composition, indications, contraindications, application_protocol, storage]
+    forbidden_for: [proving_clinical_superiority, comparative_effectiveness]
+    trust_tier: manufacturer
+
+  shofu:
+    domain: shofu.com
+    include_subdomains: true
+    category: manufacturer
+    specialties: [restorative, esthetic_dentistry, biomaterials]
+    allowed_for: [IFU, product_specifications, composition, indications, contraindications, application_protocol, storage]
+    forbidden_for: [proving_clinical_superiority, comparative_effectiveness]
+    trust_tier: manufacturer
+
+  tokuyama:
+    domain: tokuyama-dental.com
+    include_subdomains: true
+    category: manufacturer
+    specialties: [restorative, biomaterials]
+    allowed_for: [IFU, product_specifications, composition, indications, contraindications, application_protocol, storage]
+    forbidden_for: [proving_clinical_superiority, comparative_effectiveness]
+    trust_tier: manufacturer
+
+  dmg:
+    domain: dmg-dental.com
+    include_subdomains: true
+    category: manufacturer
+    specialties: [restorative, prosthodontics, biomaterials]
+    allowed_for: [IFU, product_specifications, composition, indications, contraindications, application_protocol, storage]
+    forbidden_for: [proving_clinical_superiority, comparative_effectiveness]
+    trust_tier: manufacturer

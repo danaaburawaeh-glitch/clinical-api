@@ -131,7 +131,7 @@ class EvidenceOrchestrator:
                 study_designs=designs,
             ),
             "Europe PMC": lambda: self._europe_pmc.search(
-                expansion.expanded_query,
+                expansion.europe_pmc_query or expansion.expanded_query,
                 max_results=min(request.max_results * 2, 40),
                 date_from=date_from,
                 date_to=date_to,

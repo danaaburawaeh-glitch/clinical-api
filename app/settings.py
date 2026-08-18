@@ -32,7 +32,10 @@ class Settings(BaseSettings):
     # Service identity
     # ------------------------------------------------------------------
     service_name: str = "Clinical Evidence Gateway"
-    version: str = "1.0.0"
+    # Bump on every functional change. /health reports this, which is the
+    # only reliable way to confirm WHICH build a platform is actually
+    # running — two builds can share a domain count and differ in code.
+    version: str = "1.2.0"
     environment: str = Field(default="development")
     debug_endpoints_enabled: bool = Field(default=False)
 

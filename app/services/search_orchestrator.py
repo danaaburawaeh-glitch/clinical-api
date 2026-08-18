@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable
@@ -60,6 +61,7 @@ from app.models.schemas import (
 )
 from app.security.allowlist import SourceRegistry, get_source_registry
 from app.security.safe_http import SafeHttpClient
+from app.settings import get_settings
 from app.security.url_validator import UrlValidationError, validate_url_sync
 from app.services.logging_service import log_event
 from app.utils.helpers import Stopwatch, utc_now, utc_now_iso
@@ -104,12 +106,14 @@ class EvidenceOrchestrator:
         self._guidelines = GuidelineSearchEngine(http, self._registry)
         self._rules = get_evidence_rules()
         self._expander = get_query_expander()
+        self._settings = get_settings()
 
     # ------------------------------------------------------------------
     async def search(
         self, request: EvidenceSearchRequest, *, request_id: str | None = None
     ) -> SearchResponse:
         """Execute the evidence pipeline and build the API response."""
+        pipeline_started = time.perf_counter()
         date_from, date_to = request.date_range()
         specialty = request.specialty.value if request.specialty else None
 
@@ -166,8 +170,16 @@ class EvidenceOrchestrator:
         # failure this service can produce. Widen and retry instead, and
         # record which relaxation actually produced the results.
         relaxation_used: str | None = None
+        relaxation_skipped: bool = False
         if not records and any(o.succeeded for o in outcomes):
+            budget = self._settings.relaxation_budget_seconds
             for label, relaxed in expansion.fallback_queries:
+                if (time.perf_counter() - pipeline_started) >= budget:
+                    # Out of time. Returning an honest empty result beats
+                    # a client-side timeout, which surfaces as "technical
+                    # failure" and tells the clinician nothing.
+                    relaxation_skipped = True
+                    break
                 retry_tasks: dict[str, Callable[[], Awaitable[list[RawRecord]]]] = {
                     "PubMed": lambda q=relaxed: self._pubmed.search(
                         q,
@@ -264,6 +276,12 @@ class EvidenceOrchestrator:
 
         # ---- 8. Build response -----------------------------------------
         warnings = self._build_warnings(final_records, excluded, failed, expansion)
+        if relaxation_skipped:
+            warnings.append(
+                "The precise query returned no records and the search could "
+                "not be widened within the time budget. This is NOT evidence "
+                "of absence — re-run with a shorter, more focused query."
+            )
         if relaxation_used:
             # Never widen silently: the caller must know the strict query
             # found nothing and these records come from a looser search.

@@ -52,9 +52,15 @@ USER appuser
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -fsS http://127.0.0.1:8000/health || exit 1
+  CMD curl -fsS http://127.0.0.1:${PORT:-8000}/health || exit 1
 
 # Single worker by default. The in-process rate limiter and SQLite cache
 # are per-process; see README "Known limitations" before scaling workers.
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", \
-     "--workers", "1", "--proxy-headers", "--forwarded-allow-ips", "*"]
+#
+# PORT is honoured because managed platforms (Railway, Render, Fly, Cloud
+# Run) inject their own port and route only to it. A hardcoded port makes
+# the container build and report "deployed" while every request returns
+# 502, because the proxy is talking to a port nothing is listening on.
+# Shell form is required so ${PORT} is expanded at runtime.
+CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} \
+     --workers 1 --proxy-headers --forwarded-allow-ips "*"

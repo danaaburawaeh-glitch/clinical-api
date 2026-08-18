@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     # Bump on every functional change. /health reports this, which is the
     # only reliable way to confirm WHICH build a platform is actually
     # running — two builds can share a domain count and differ in code.
-    version: str = "1.3.0"
+    version: str = "1.4.0"
     environment: str = Field(default="development")
     debug_endpoints_enabled: bool = Field(default=False)
 
@@ -62,6 +62,12 @@ class Settings(BaseSettings):
     # Networking / safety (PART 23)
     # ------------------------------------------------------------------
     http_timeout_seconds: float = Field(default=15.0)
+    # Widening the search costs extra upstream round-trips. GPT Actions
+    # abandon a call at roughly 45s, and a request that dies in the client
+    # is reported as a technical failure — strictly worse than returning
+    # the strict (empty) result honestly. Never start a new relaxation
+    # round once this much of the budget is already spent.
+    relaxation_budget_seconds: float = Field(default=12.0)
     http_connect_timeout_seconds: float = Field(default=5.0)
     http_max_redirects: int = Field(default=3)
     http_max_response_bytes: int = Field(default=8 * 1024 * 1024)

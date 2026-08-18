@@ -56,5 +56,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 
 # Single worker by default. The in-process rate limiter and SQLite cache
 # are per-process; see README "Known limitations" before scaling workers.
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", \
-     "--workers", "1", "--proxy-headers", "--forwarded-allow-ips", "*"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --proxy-headers --forwarded-allow-ips '*'"]

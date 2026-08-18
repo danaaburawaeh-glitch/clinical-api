@@ -322,23 +322,9 @@ class SafeHttpClient:
             await response.aclose()
 
         # Rebuild a non-streaming response object carrying the read body.
-        #
-        # ``aiter_bytes()`` yields DECODED bytes: httpx has already undone
-        # any Content-Encoding. Carrying the original Content-Encoding over
-        # to the rebuilt response would make httpx try to decompress the
-        # already-decompressed body on the next ``.json()`` / ``.text``
-        # access, raising DecodingError. Content-Length is stale for the
-        # same reason. Both must be dropped.
-        safe_headers = httpx.Headers(
-            [
-                (key, value)
-                for key, value in response.headers.multi_items()
-                if key.lower() not in ("content-encoding", "content-length")
-            ]
-        )
         return httpx.Response(
             status_code=response.status_code,
-            headers=safe_headers,
+            headers=response.headers,
             content=body,
             request=request,
         )

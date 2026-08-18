@@ -47,6 +47,9 @@ class ExpansionResult:
     original_query: str
     expanded_query: str
     europe_pmc_query: str = ""
+    # Progressively looser queries, tried in order when the strict query
+    # returns nothing. Each entry is (label, pubmed_query).
+    fallback_queries: list[tuple[str, str]] = field(default_factory=list)
     matched_concepts: list[str] = field(default_factory=list)
     matched_brands: list[str] = field(default_factory=list)
     added_terms: list[str] = field(default_factory=list)
@@ -248,6 +251,30 @@ class QueryExpander:
 
         result.expanded_query = " AND ".join(clauses) if len(clauses) > 1 else clauses[0]
         result.europe_pmc_query = _to_europe_pmc_dialect(result.expanded_query)
+
+        # --- relaxation ladder -------------------------------------------
+        # The strict query ANDs the user's own words with every concept
+        # group and every PICO clause. That is precise but brittle: a
+        # natural-language question ("strongest independent evidence on X
+        # versus Y") ANDs a sentence no paper contains, and each PICO field
+        # adds another hard requirement. When the strict query returns
+        # nothing we must widen rather than report "no evidence".
+        ladder: list[tuple[str, str]] = []
+        if groups and pico_clause:
+            # drop PICO, keep the user's words + concept groups
+            ladder.append(("without_pico", " AND ".join([f"({original})", " AND ".join(groups)])))
+        if groups:
+            # drop the raw free-text sentence, keep the dental concepts
+            ladder.append(("concepts_only", " AND ".join(groups)))
+        if not groups:
+            ladder.append(("original_only", f"({original})"))
+        # de-duplicate and never repeat the strict query itself
+        seen_q = {result.expanded_query}
+        result.fallback_queries = []
+        for label, q in ladder:
+            if q and q not in seen_q:
+                seen_q.add(q)
+                result.fallback_queries.append((label, q))
 
         if not groups and not pico_clause:
             result.notes.append(

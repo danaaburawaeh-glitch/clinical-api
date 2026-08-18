@@ -498,3 +498,47 @@ def test_europe_pmc_dialect_maps_known_field_tags():
     assert _to_europe_pmc_dialect('"Dental Bonding"[MeSH Terms]') == 'MESH:"Dental Bonding"'
     # An unrecognised tag degrades to plain text, never to invalid syntax.
     assert _to_europe_pmc_dialect('"x"[Nonsense Field]') == '"x"'
+
+
+# --- relaxation ladder (regression) ----------------------------------
+# A natural-language question used to be ANDed verbatim with every concept
+# group and PICO clause, producing a query no paper could match. The
+# service then reported "insufficient evidence" for a well-studied topic —
+# a false negative, the most dangerous failure mode here.
+
+def test_natural_language_question_gets_a_relaxation_ladder():
+    from app.evidence.query_expander import get_query_expander
+
+    expander = get_query_expander()
+    result = expander.expand(
+        "strongest independent clinical evidence immediate dentin sealing "
+        "versus delayed dentin sealing survival debonding",
+        intervention="immediate dentin sealing",
+        comparator="delayed dentin sealing",
+        outcome="survival",
+    )
+    labels = [label for label, _ in result.fallback_queries]
+    assert "concepts_only" in labels, "must be able to drop the raw sentence"
+
+    concepts_only = dict((l, q) for l, q in result.fallback_queries)["concepts_only"]
+    # The loosest rung must not carry the user's sentence any more.
+    assert "strongest independent clinical evidence" not in concepts_only
+    # ...but must still carry the dental concept.
+    assert "immediate dentin sealing" in concepts_only
+    # ...and must not have become an unbounded query.
+    assert "[Title/Abstract]" in concepts_only
+
+
+def test_relaxation_ladder_is_ordered_strict_to_loose():
+    from app.evidence.query_expander import get_query_expander
+
+    expander = get_query_expander()
+    result = expander.expand(
+        "immediate dentin sealing", intervention="immediate dentin sealing",
+        outcome="survival",
+    )
+    labels = [label for label, _ in result.fallback_queries]
+    if "without_pico" in labels and "concepts_only" in labels:
+        assert labels.index("without_pico") < labels.index("concepts_only")
+    # the strict query is never repeated as a fallback
+    assert all(q != result.expanded_query for _, q in result.fallback_queries)

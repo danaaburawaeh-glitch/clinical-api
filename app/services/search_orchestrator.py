@@ -41,7 +41,11 @@ from app.engines.pubmed import PubMedEngine
 from app.evidence.classifier import classify_records
 from app.evidence.conflict_detector import detect_conflict
 from app.evidence.deduplicator import deduplicate
-from app.evidence.query_expander import ExpansionResult, get_query_expander
+from app.evidence.query_expander import (
+    ExpansionResult,
+    _to_europe_pmc_dialect,
+    get_query_expander,
+)
 from app.evidence.ranker import RankingContext, describe_ranking, rank_records
 from app.evidence.retraction_check import check_records
 from app.evidence.rules import get_evidence_rules
@@ -154,6 +158,41 @@ class EvidenceOrchestrator:
         for outcome in outcomes:
             records.extend(outcome.records)
 
+        # ---- 2b. Relaxation ladder -------------------------------------
+        # The strict query ANDs the user's own sentence with every concept
+        # group and every PICO clause, which can be so narrow that a real,
+        # well-indexed literature returns zero hits. Reporting that as
+        # "no evidence" would be a false negative — the most dangerous
+        # failure this service can produce. Widen and retry instead, and
+        # record which relaxation actually produced the results.
+        relaxation_used: str | None = None
+        if not records and any(o.succeeded for o in outcomes):
+            for label, relaxed in expansion.fallback_queries:
+                retry_tasks: dict[str, Callable[[], Awaitable[list[RawRecord]]]] = {
+                    "PubMed": lambda q=relaxed: self._pubmed.search(
+                        q,
+                        max_results=min(request.max_results * 2, 40),
+                        date_from=date_from,
+                        date_to=date_to,
+                        study_designs=designs,
+                    ),
+                    "Europe PMC": lambda q=relaxed: self._europe_pmc.search(
+                        _to_europe_pmc_dialect(q),
+                        max_results=min(request.max_results * 2, 40),
+                        date_from=date_from,
+                        date_to=date_to,
+                    ),
+                }
+                retry_outcomes = await self._run_providers(retry_tasks)
+                retry_records: list[RawRecord] = []
+                for outcome in retry_outcomes:
+                    retry_records.extend(outcome.records)
+                if retry_records:
+                    records = retry_records
+                    outcomes = retry_outcomes
+                    relaxation_used = label
+                    break
+
         searched = [o.provider for o in outcomes]
         successful = [o.provider for o in outcomes if o.succeeded]
         failed = [
@@ -225,6 +264,15 @@ class EvidenceOrchestrator:
 
         # ---- 8. Build response -----------------------------------------
         warnings = self._build_warnings(final_records, excluded, failed, expansion)
+        if relaxation_used:
+            # Never widen silently: the caller must know the strict query
+            # found nothing and these records come from a looser search.
+            warnings.append(
+                "The precise query returned no records, so the search was "
+                f"widened ({relaxation_used}). These results match the "
+                "clinical concepts but may be less specific to the exact "
+                "question as phrased; check relevance before citing."
+            )
         summary, defer = self._build_summary(recommendable)
 
         results = records_to_results(final_records, self._registry)

@@ -1,0 +1,819 @@
+# =====================================================================
+# Clinical Evidence Safe Search — HARD SOURCE ALLOWLIST
+# =====================================================================
+# This file is NOT documentation. It is loaded at startup by
+# app/security/allowlist.py and enforced on every outbound request and
+# every returned URL. A domain that is not in this file cannot be
+# fetched by the backend and cannot appear in an API response.
+#
+# Schema for every entry:
+#   domain:              registrable host (no scheme, no path)
+#   include_subdomains:  bool — allow *.domain
+#   category:            see PART 70 categories below
+#   specialties:         list of dental specialties (optional)
+#   allowed_for:         permitted uses
+#   forbidden_for:       explicitly prohibited uses
+#   trust_tier:          evidence | guideline | professional | regulatory
+#                        | manufacturer | metadata
+#
+# Categories:
+#   scientific_database, journal, professional_organization,
+#   guideline_body, regulator, standards_body, manufacturer,
+#   bibliographic_metadata, clinical_trial_registry,
+#   public_health_authority
+#
+# CHANGE LOG vs. the originally requested list (see README "Source list
+# verification"):
+#   + eutils.ncbi.nlm.nih.gov     covered by ncbi.nlm.nih.gov subdomains
+#   + api.fda.gov                 ADDED — the real openFDA API host
+#   + ebi.ac.uk                   ADDED — the real Europe PMC REST host
+#   + api.crossref.org            covered by crossref.org subdomains
+#   + zimvie.com                  ADDED — Zimmer Biomet Dental became
+#                                 ZimVie (2022); zimmerbiomet.com kept
+#                                 for legacy/medical documents
+#   ~ health-canada.canada.ca     CORRECTED to canada.ca (the official
+#                                 registrable domain; Health Canada lives
+#                                 under canada.ca/en/health-canada)
+#   ~ 3m.com / solventum.com      both kept: 3M Health Care's oral care
+#                                 business became Solventum in 2024,
+#                                 legacy IFUs still sit on 3m.com
+#   + gceurope.com                ADDED alongside gc.dental (GC uses both)
+# =====================================================================
+
+sources:
+
+  # ==================================================================
+  # CORE EVIDENCE / BIBLIOGRAPHY
+  # ==================================================================
+
+  pubmed:
+    domain: pubmed.ncbi.nlm.nih.gov
+    include_subdomains: false
+    category: scientific_database
+    specialties: [all]
+    allowed_for: [clinical_evidence, literature_search, metadata]
+    forbidden_for: []
+    trust_tier: evidence
+
+  pmc:
+    domain: pmc.ncbi.nlm.nih.gov
+    include_subdomains: false
+    category: scientific_database
+    specialties: [all]
+    allowed_for: [clinical_evidence, literature_search, full_text, metadata]
+    forbidden_for: []
+    trust_tier: evidence
+
+  ncbi:
+    domain: ncbi.nlm.nih.gov
+    include_subdomains: true
+    category: scientific_database
+    specialties: [all]
+    allowed_for: [clinical_evidence, literature_search, api_access, metadata]
+    forbidden_for: []
+    trust_tier: evidence
+    notes: >
+      Covers eutils.ncbi.nlm.nih.gov (E-utilities API) via subdomains.
+
+  europe_pmc:
+    domain: europepmc.org
+    include_subdomains: true
+    category: scientific_database
+    specialties: [all]
+    allowed_for: [clinical_evidence, literature_search, full_text, metadata]
+    forbidden_for: []
+    trust_tier: evidence
+
+  ebi:
+    domain: ebi.ac.uk
+    include_subdomains: true
+    category: scientific_database
+    specialties: [all]
+    allowed_for: [literature_search, api_access, metadata]
+    forbidden_for: []
+    trust_tier: evidence
+    notes: >
+      ADDED. The Europe PMC REST API is served from
+      www.ebi.ac.uk/europepmc/webservices/rest. Without this entry the
+      Europe PMC engine would be blocked by its own SSRF/allowlist guard.
+
+  cochrane:
+    domain: cochranelibrary.com
+    include_subdomains: true
+    category: scientific_database
+    specialties: [all]
+    allowed_for: [clinical_evidence, systematic_reviews, literature_search]
+    forbidden_for: []
+    trust_tier: evidence
+
+  clinicaltrials:
+    domain: clinicaltrials.gov
+    include_subdomains: true
+    category: clinical_trial_registry
+    specialties: [all]
+    allowed_for: [trial_registration, study_protocol, recruitment_status]
+    forbidden_for: [proving_clinical_efficacy]
+    trust_tier: evidence
+    notes: >
+      A registered trial is not a result. Registration entries must never
+      be presented as outcome evidence.
+
+  crossref:
+    domain: crossref.org
+    include_subdomains: true
+    category: bibliographic_metadata
+    specialties: [all]
+    allowed_for: [metadata_validation, doi_resolution, retraction_metadata]
+    forbidden_for: [clinical_recommendation, evidence_grading]
+    trust_tier: metadata
+
+  doi:
+    domain: doi.org
+    include_subdomains: true
+    category: bibliographic_metadata
+    specialties: [all]
+    allowed_for: [doi_resolution]
+    forbidden_for: [clinical_recommendation]
+    trust_tier: metadata
+
+  # ==================================================================
+  # GENERAL DENTISTRY / PUBLIC HEALTH
+  # ==================================================================
+
+  ada:
+    domain: ada.org
+    include_subdomains: true
+    category: professional_organization
+    specialties: [general_dentistry, preventive_dentistry, all]
+    allowed_for: [clinical_practice_guideline, position_statement, professional_recommendation]
+    forbidden_for: []
+    trust_tier: guideline
+
+  jada:
+    domain: jada.ada.org
+    include_subdomains: false
+    category: journal
+    specialties: [general_dentistry, all]
+    allowed_for: [clinical_evidence, literature_search]
+    forbidden_for: []
+    trust_tier: evidence
+
+  fdi:
+    domain: fdiworlddental.org
+    include_subdomains: true
+    category: professional_organization
+    specialties: [general_dentistry, preventive_dentistry]
+    allowed_for: [position_statement, policy_statement, consensus]
+    forbidden_for: []
+    trust_tier: professional
+
+  iadr:
+    domain: iadr.org
+    include_subdomains: true
+    category: professional_organization
+    specialties: [all]
+    allowed_for: [position_statement, research_policy]
+    forbidden_for: []
+    trust_tier: professional
+
+  cdc:
+    domain: cdc.gov
+    include_subdomains: true
+    category: public_health_authority
+    specialties: [preventive_dentistry, general_dentistry]
+    allowed_for: [public_health_guidance, infection_control, epidemiology]
+    forbidden_for: []
+    trust_tier: guideline
+
+  who:
+    domain: who.int
+    include_subdomains: true
+    category: public_health_authority
+    specialties: [preventive_dentistry, general_dentistry]
+    allowed_for: [public_health_guidance, global_policy, epidemiology]
+    forbidden_for: []
+    trust_tier: guideline
+
+  nice:
+    domain: nice.org.uk
+    include_subdomains: true
+    category: guideline_body
+    specialties: [all]
+    allowed_for: [clinical_practice_guideline, technology_appraisal]
+    forbidden_for: []
+    trust_tier: guideline
+
+  ahrq:
+    domain: ahrq.gov
+    include_subdomains: true
+    category: guideline_body
+    specialties: [all]
+    allowed_for: [evidence_report, systematic_review, quality_guidance]
+    forbidden_for: []
+    trust_tier: guideline
+
+  # ==================================================================
+  # PROSTHODONTICS / ESTHETICS / RESTORATIVE
+  # ==================================================================
+
+  acp:
+    domain: prosthodontics.org
+    include_subdomains: true
+    category: professional_organization
+    specialties: [prosthodontics, restorative, esthetic_dentistry]
+    allowed_for: [clinical_practice_guideline, position_statement, parameters_of_care]
+    forbidden_for: []
+    trust_tier: guideline
+
+  aacd:
+    domain: aacd.com
+    include_subdomains: true
+    category: professional_organization
+    specialties: [esthetic_dentistry, restorative]
+    allowed_for: [position_statement, professional_recommendation]
+    forbidden_for: []
+    trust_tier: professional
+
+  sage:
+    domain: journals.sagepub.com
+    include_subdomains: false
+    category: journal
+    specialties: [all]
+    allowed_for: [clinical_evidence, literature_search]
+    forbidden_for: []
+    trust_tier: evidence
+    requires_journal_allowlist: true
+
+  wiley:
+    domain: onlinelibrary.wiley.com
+    include_subdomains: false
+    category: journal
+    specialties: [all]
+    allowed_for: [clinical_evidence, literature_search]
+    forbidden_for: []
+    trust_tier: evidence
+    requires_journal_allowlist: true
+
+  sciencedirect:
+    domain: sciencedirect.com
+    include_subdomains: true
+    category: journal
+    specialties: [all]
+    allowed_for: [clinical_evidence, literature_search]
+    forbidden_for: []
+    trust_tier: evidence
+    requires_journal_allowlist: true
+
+  springer:
+    domain: link.springer.com
+    include_subdomains: false
+    category: journal
+    specialties: [all]
+    allowed_for: [clinical_evidence, literature_search]
+    forbidden_for: []
+    trust_tier: evidence
+    requires_journal_allowlist: true
+
+  nature:
+    domain: nature.com
+    include_subdomains: true
+    category: journal
+    specialties: [all]
+    allowed_for: [clinical_evidence, literature_search]
+    forbidden_for: []
+    trust_tier: evidence
+    requires_journal_allowlist: true
+
+  # ==================================================================
+  # PERIODONTOLOGY
+  # ==================================================================
+
+  aap_perio:
+    domain: perio.org
+    include_subdomains: true
+    category: professional_organization
+    specialties: [periodontology, implantology]
+    allowed_for: [clinical_practice_guideline, consensus_report, classification]
+    forbidden_for: []
+    trust_tier: guideline
+
+  efp:
+    domain: efp.org
+    include_subdomains: true
+    category: professional_organization
+    specialties: [periodontology, implantology]
+    allowed_for: [clinical_practice_guideline, consensus_report, s3_guideline]
+    forbidden_for: []
+    trust_tier: guideline
+
+  # ==================================================================
+  # IMPLANTOLOGY
+  # ==================================================================
+
+  iti:
+    domain: iti.org
+    include_subdomains: true
+    category: professional_organization
+    specialties: [implantology, prosthodontics, oral_surgery]
+    allowed_for: [consensus_report, treatment_guideline]
+    forbidden_for: [proving_product_superiority]
+    trust_tier: guideline
+    notes: >
+      ITI has historical industry ties to implant manufacturers. Consensus
+      statements are usable as guideline-tier material; they must not be
+      used to establish superiority of a specific commercial system.
+
+  osseo:
+    domain: osseo.org
+    include_subdomains: true
+    category: professional_organization
+    specialties: [implantology]
+    allowed_for: [consensus_report, position_statement]
+    forbidden_for: [proving_product_superiority]
+    trust_tier: professional
+
+  eao:
+    domain: eao.org
+    include_subdomains: true
+    category: professional_organization
+    specialties: [implantology]
+    allowed_for: [consensus_report, position_statement]
+    forbidden_for: [proving_product_superiority]
+    trust_tier: guideline
+
+  # ==================================================================
+  # ENDODONTICS
+  # ==================================================================
+
+  aae:
+    domain: aae.org
+    include_subdomains: true
+    category: professional_organization
+    specialties: [endodontics]
+    allowed_for: [clinical_practice_guideline, position_statement, case_difficulty_assessment]
+    forbidden_for: []
+    trust_tier: guideline
+
+  ese:
+    domain: e-s-e.eu
+    include_subdomains: true
+    category: professional_organization
+    specialties: [endodontics]
+    allowed_for: [position_statement, quality_guideline, s3_guideline]
+    forbidden_for: []
+    trust_tier: guideline
+
+  # ==================================================================
+  # ORTHODONTICS
+  # ==================================================================
+
+  aao:
+    domain: aaoinfo.org
+    include_subdomains: true
+    category: professional_organization
+    specialties: [orthodontics]
+    allowed_for: [clinical_practice_guideline, position_statement, consumer_alert]
+    forbidden_for: []
+    trust_tier: guideline
+
+  bos:
+    domain: bos.org.uk
+    include_subdomains: true
+    category: professional_organization
+    specialties: [orthodontics]
+    allowed_for: [position_statement, clinical_guideline, advice_sheet]
+    forbidden_for: []
+    trust_tier: professional
+
+  # ==================================================================
+  # PEDIATRIC DENTISTRY
+  # ==================================================================
+
+  aapd:
+    domain: aapd.org
+    include_subdomains: true
+    category: professional_organization
+    specialties: [pediatric_dentistry, preventive_dentistry]
+    allowed_for: [clinical_practice_guideline, best_practices, policy_statement]
+    forbidden_for: []
+    trust_tier: guideline
+
+  eapd:
+    domain: eapd.eu
+    include_subdomains: true
+    category: professional_organization
+    specialties: [pediatric_dentistry]
+    allowed_for: [clinical_practice_guideline, policy_document]
+    forbidden_for: []
+    trust_tier: guideline
+
+  # ==================================================================
+  # ORAL SURGERY
+  # ==================================================================
+
+  aaoms:
+    domain: aaoms.org
+    include_subdomains: true
+    category: professional_organization
+    specialties: [oral_surgery]
+    allowed_for: [clinical_practice_guideline, parameters_of_care, position_paper]
+    forbidden_for: []
+    trust_tier: guideline
+
+  # ==================================================================
+  # ORAL MEDICINE / PATHOLOGY
+  # ==================================================================
+
+  aaom:
+    domain: aaom.com
+    include_subdomains: true
+    category: professional_organization
+    specialties: [oral_medicine]
+    allowed_for: [position_paper, clinical_practice_statement]
+    forbidden_for: []
+    trust_tier: professional
+
+  aaomp:
+    domain: aaomp.org
+    include_subdomains: true
+    category: professional_organization
+    specialties: [oral_pathology]
+    allowed_for: [position_paper, diagnostic_guidance]
+    forbidden_for: []
+    trust_tier: professional
+
+  # ==================================================================
+  # ORAL & MAXILLOFACIAL RADIOLOGY
+  # ==================================================================
+
+  aaomr:
+    domain: aaomr.org
+    include_subdomains: true
+    category: professional_organization
+    specialties: [radiology]
+    allowed_for: [position_statement, imaging_guideline]
+    forbidden_for: []
+    trust_tier: guideline
+
+  iaea:
+    domain: iaea.org
+    include_subdomains: true
+    category: standards_body
+    specialties: [radiology]
+    allowed_for: [radiation_protection_guidance, safety_standard]
+    forbidden_for: [clinical_treatment_recommendation]
+    trust_tier: guideline
+
+  # ==================================================================
+  # REGULATORY
+  # ==================================================================
+
+  fda:
+    domain: fda.gov
+    include_subdomains: true
+    category: regulator
+    specialties: [all]
+    allowed_for: [regulatory_status, clearance, approval, recall, safety_communication, labeling]
+    forbidden_for: [proving_clinical_superiority, proving_comparative_effectiveness]
+    trust_tier: regulatory
+
+  openfda:
+    domain: open.fda.gov
+    include_subdomains: false
+    category: regulator
+    specialties: [all]
+    allowed_for: [regulatory_status, api_documentation]
+    forbidden_for: [proving_clinical_superiority]
+    trust_tier: regulatory
+
+  openfda_api:
+    domain: api.fda.gov
+    include_subdomains: false
+    category: regulator
+    specialties: [all]
+    allowed_for: [regulatory_status, api_access, clearance, approval, recall, adverse_event, classification]
+    forbidden_for: [proving_clinical_superiority]
+    trust_tier: regulatory
+    notes: >
+      ADDED. openFDA's machine-readable endpoints live on api.fda.gov,
+      not open.fda.gov. Required for the regulatory engine to function.
+
+  fda_accessdata:
+    domain: accessdata.fda.gov
+    include_subdomains: false
+    category: regulator
+    specialties: [all]
+    allowed_for: [regulatory_status, clearance, approval, device_database, labeling]
+    forbidden_for: [proving_clinical_superiority]
+    trust_tier: regulatory
+
+  sfda:
+    domain: sfda.gov.sa
+    include_subdomains: true
+    category: regulator
+    specialties: [all]
+    allowed_for: [regulatory_status, registration, recall, safety_alert, guidance]
+    forbidden_for: [proving_clinical_superiority]
+    trust_tier: regulatory
+
+  moh_sa:
+    domain: moh.gov.sa
+    include_subdomains: true
+    category: public_health_authority
+    specialties: [all]
+    allowed_for: [public_health_guidance, national_protocol]
+    forbidden_for: []
+    trust_tier: guideline
+
+  mhra_gov_uk:
+    domain: gov.uk
+    include_subdomains: true
+    category: regulator
+    specialties: [all]
+    allowed_for: [regulatory_status, safety_alert, field_safety_notice, guidance]
+    forbidden_for: [proving_clinical_superiority]
+    trust_tier: regulatory
+    notes: >
+      MHRA publishes under www.gov.uk/government/organisations/
+      medicines-and-healthcare-products-regulatory-agency.
+
+  eu_commission:
+    domain: ec.europa.eu
+    include_subdomains: true
+    category: regulator
+    specialties: [all]
+    allowed_for: [regulatory_status, mdr_guidance, eudamed, safety_notice]
+    forbidden_for: [proving_clinical_superiority]
+    trust_tier: regulatory
+
+  health_canada:
+    domain: canada.ca
+    include_subdomains: true
+    category: regulator
+    specialties: [all]
+    allowed_for: [regulatory_status, licence, recall, safety_alert]
+    forbidden_for: [proving_clinical_superiority]
+    trust_tier: regulatory
+    notes: >
+      CORRECTED from "health-canada.canada.ca". Health Canada content is
+      published under canada.ca/en/health-canada.
+
+  tga:
+    domain: tga.gov.au
+    include_subdomains: true
+    category: regulator
+    specialties: [all]
+    allowed_for: [regulatory_status, artg_inclusion, recall, safety_alert]
+    forbidden_for: [proving_clinical_superiority]
+    trust_tier: regulatory
+
+  imdrf:
+    domain: imdrf.org
+    include_subdomains: true
+    category: standards_body
+    specialties: [all]
+    allowed_for: [regulatory_harmonisation_guidance, terminology]
+    forbidden_for: [clinical_recommendation]
+    trust_tier: regulatory
+
+  # ==================================================================
+  # STANDARDS / AI / DIGITAL MEDICINE
+  # ==================================================================
+
+  iso:
+    domain: iso.org
+    include_subdomains: true
+    category: standards_body
+    specialties: [biomaterials, digital_dentistry, all]
+    allowed_for: [standard_reference, test_method, terminology]
+    forbidden_for: [clinical_recommendation, proving_clinical_superiority]
+    trust_tier: regulatory
+    notes: >
+      ISO standards define test methods (e.g. ISO 29022 shear bond).
+      Conformance to a test standard is not clinical evidence.
+
+  nist:
+    domain: nist.gov
+    include_subdomains: true
+    category: standards_body
+    specialties: [dental_ai, digital_dentistry]
+    allowed_for: [standard_reference, ai_risk_framework, measurement_science]
+    forbidden_for: [clinical_recommendation]
+    trust_tier: regulatory
+
+  # ==================================================================
+  # DENTAL MATERIALS MANUFACTURERS
+  # MANUFACTURER INFORMATION ONLY
+  # ==================================================================
+
+  ivoclar:
+    domain: ivoclar.com
+    include_subdomains: true
+    category: manufacturer
+    specialties: [restorative, prosthodontics, esthetic_dentistry, biomaterials]
+    allowed_for:
+      - IFU
+      - product_specifications
+      - composition
+      - indications
+      - contraindications
+      - application_protocol
+      - cementation_protocol
+      - surface_treatment
+      - storage
+      - compatibility
+    forbidden_for:
+      - proving_clinical_superiority
+      - comparative_effectiveness
+      - survival_rate_claims
+    trust_tier: manufacturer
+
+  kuraray_noritake:
+    domain: kuraraynoritake.com
+    include_subdomains: true
+    category: manufacturer
+    specialties: [restorative, prosthodontics, biomaterials]
+    allowed_for: [IFU, product_specifications, composition, indications, contraindications, application_protocol, cementation_protocol, surface_treatment, storage, compatibility]
+    forbidden_for: [proving_clinical_superiority, comparative_effectiveness]
+    trust_tier: manufacturer
+
+  mmm:
+    domain: 3m.com
+    include_subdomains: true
+    category: manufacturer
+    specialties: [restorative, biomaterials, orthodontics]
+    allowed_for: [IFU, product_specifications, composition, indications, contraindications, application_protocol, storage]
+    forbidden_for: [proving_clinical_superiority, comparative_effectiveness]
+    trust_tier: manufacturer
+    notes: >
+      3M's oral care business transferred to Solventum in 2024. Legacy
+      IFUs remain hosted on 3m.com; new documents appear on
+      solventum.com. Both are allowlisted.
+
+  solventum:
+    domain: solventum.com
+    include_subdomains: true
+    category: manufacturer
+    specialties: [restorative, biomaterials, orthodontics]
+    allowed_for: [IFU, product_specifications, composition, indications, contraindications, application_protocol, storage]
+    forbidden_for: [proving_clinical_superiority, comparative_effectiveness]
+    trust_tier: manufacturer
+
+  gc_dental:
+    domain: gc.dental
+    include_subdomains: true
+    category: manufacturer
+    specialties: [restorative, prosthodontics, preventive_dentistry, biomaterials]
+    allowed_for: [IFU, product_specifications, composition, indications, contraindications, application_protocol, storage]
+    forbidden_for: [proving_clinical_superiority, comparative_effectiveness]
+    trust_tier: manufacturer
+
+  gc_europe:
+    domain: gceurope.com
+    include_subdomains: true
+    category: manufacturer
+    specialties: [restorative, prosthodontics, biomaterials]
+    allowed_for: [IFU, product_specifications, composition, indications, contraindications, application_protocol, storage]
+    forbidden_for: [proving_clinical_superiority, comparative_effectiveness]
+    trust_tier: manufacturer
+    notes: ADDED — GC publishes regional IFUs on gceurope.com.
+
+  dentsply_sirona:
+    domain: dentsplysirona.com
+    include_subdomains: true
+    category: manufacturer
+    specialties: [restorative, prosthodontics, endodontics, implantology, digital_dentistry]
+    allowed_for: [IFU, product_specifications, composition, indications, contraindications, application_protocol, technical_manual, storage]
+    forbidden_for: [proving_clinical_superiority, comparative_effectiveness]
+    trust_tier: manufacturer
+
+  kulzer:
+    domain: kulzer.com
+    include_subdomains: true
+    category: manufacturer
+    specialties: [restorative, prosthodontics, biomaterials]
+    allowed_for: [IFU, product_specifications, composition, indications, contraindications, application_protocol, storage]
+    forbidden_for: [proving_clinical_superiority, comparative_effectiveness]
+    trust_tier: manufacturer
+
+  voco:
+    domain: voco.dental
+    include_subdomains: true
+    category: manufacturer
+    specialties: [restorative, preventive_dentistry, biomaterials]
+    allowed_for: [IFU, product_specifications, composition, indications, contraindications, application_protocol, storage]
+    forbidden_for: [proving_clinical_superiority, comparative_effectiveness]
+    trust_tier: manufacturer
+
+  ultradent:
+    domain: ultradent.com
+    include_subdomains: true
+    category: manufacturer
+    specialties: [restorative, esthetic_dentistry, endodontics]
+    allowed_for: [IFU, product_specifications, composition, indications, contraindications, application_protocol, storage]
+    forbidden_for: [proving_clinical_superiority, comparative_effectiveness]
+    trust_tier: manufacturer
+
+  bisco:
+    domain: bisco.com
+    include_subdomains: true
+    category: manufacturer
+    specialties: [restorative, prosthodontics, biomaterials]
+    allowed_for: [IFU, product_specifications, composition, indications, contraindications, application_protocol, surface_treatment, storage]
+    forbidden_for: [proving_clinical_superiority, comparative_effectiveness]
+    trust_tier: manufacturer
+
+  septodont:
+    domain: septodont.com
+    include_subdomains: true
+    category: manufacturer
+    specialties: [oral_surgery, endodontics, restorative]
+    allowed_for: [IFU, product_specifications, composition, indications, contraindications, application_protocol, storage]
+    forbidden_for: [proving_clinical_superiority, comparative_effectiveness]
+    trust_tier: manufacturer
+
+  # ==================================================================
+  # IMPLANT MANUFACTURERS
+  # MANUFACTURER INFORMATION ONLY
+  # ==================================================================
+
+  straumann:
+    domain: straumann.com
+    include_subdomains: true
+    category: manufacturer
+    specialties: [implantology, prosthodontics, digital_dentistry]
+    allowed_for: [IFU, product_specifications, indications, contraindications, technical_manual, compatibility, surgical_protocol]
+    forbidden_for: [proving_clinical_superiority, comparative_effectiveness, survival_rate_claims]
+    trust_tier: manufacturer
+
+  nobel_biocare:
+    domain: nobelbiocare.com
+    include_subdomains: true
+    category: manufacturer
+    specialties: [implantology, prosthodontics, digital_dentistry]
+    allowed_for: [IFU, product_specifications, indications, contraindications, technical_manual, compatibility, surgical_protocol]
+    forbidden_for: [proving_clinical_superiority, comparative_effectiveness, survival_rate_claims]
+    trust_tier: manufacturer
+
+  zimmer_biomet:
+    domain: zimmerbiomet.com
+    include_subdomains: true
+    category: manufacturer
+    specialties: [implantology]
+    allowed_for: [IFU, product_specifications, indications, contraindications, technical_manual]
+    forbidden_for: [proving_clinical_superiority, comparative_effectiveness]
+    trust_tier: manufacturer
+    notes: >
+      Zimmer Biomet's dental business was spun off as ZimVie in 2022.
+      Kept for legacy documents only; see zimvie.
+
+  zimvie:
+    domain: zimvie.com
+    include_subdomains: true
+    category: manufacturer
+    specialties: [implantology, prosthodontics]
+    allowed_for: [IFU, product_specifications, indications, contraindications, technical_manual, compatibility, surgical_protocol]
+    forbidden_for: [proving_clinical_superiority, comparative_effectiveness, survival_rate_claims]
+    trust_tier: manufacturer
+    notes: ADDED — current owner of the former Zimmer Biomet dental portfolio.
+
+  biohorizons:
+    domain: biohorizons.com
+    include_subdomains: true
+    category: manufacturer
+    specialties: [implantology]
+    allowed_for: [IFU, product_specifications, indications, contraindications, technical_manual, compatibility, surgical_protocol]
+    forbidden_for: [proving_clinical_superiority, comparative_effectiveness, survival_rate_claims]
+    trust_tier: manufacturer
+
+  # ==================================================================
+  # DIGITAL DENTISTRY MANUFACTURERS
+  # MANUFACTURER INFORMATION ONLY
+  # ==================================================================
+
+  threeshape:
+    domain: 3shape.com
+    include_subdomains: true
+    category: manufacturer
+    specialties: [digital_dentistry, prosthodontics, orthodontics]
+    allowed_for: [IFU, product_specifications, technical_manual, compatibility, indications, contraindications]
+    forbidden_for: [proving_clinical_superiority, comparative_effectiveness, accuracy_superiority_claims]
+    trust_tier: manufacturer
+
+  medit:
+    domain: medit.com
+    include_subdomains: true
+    category: manufacturer
+    specialties: [digital_dentistry]
+    allowed_for: [IFU, product_specifications, technical_manual, compatibility, indications, contraindications]
+    forbidden_for: [proving_clinical_superiority, comparative_effectiveness, accuracy_superiority_claims]
+    trust_tier: manufacturer
+
+  exocad:
+    domain: exocad.com
+    include_subdomains: true
+    category: manufacturer
+    specialties: [digital_dentistry, prosthodontics]
+    allowed_for: [technical_manual, product_specifications, compatibility, indications]
+    forbidden_for: [proving_clinical_superiority, comparative_effectiveness]
+    trust_tier: manufacturer

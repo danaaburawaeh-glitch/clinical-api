@@ -1,0 +1,804 @@
+# =====================================================================
+# Dental query expansion dictionary
+# =====================================================================
+# Used by app/evidence/query_expander.py.
+#
+# Design rules (PART 16):
+#  - Expansion widens recall, it must not change the user's question.
+#  - A concept is expanded ONLY if one of its trigger terms appears in
+#    the query. There is no blanket expansion.
+#  - Brand names live in `brands:` and are added only when the brand is
+#    explicitly mentioned. Searching "lithium disilicate" must NOT be
+#    narrowed to IPS e.max; but searching "IPS e.max" DOES add
+#    "lithium disilicate" (brand -> generic is safe, generic -> brand
+#    is not).
+#  - `max_terms_per_concept` in evidence_rules.yaml caps how many
+#    synonyms are injected so the final PubMed query stays tractable.
+#
+# Structure:
+#   concepts:
+#     <key>:
+#       specialty: <specialty tag or 'all'>
+#       terms: [...]          # trigger + expansion terms (bidirectional)
+#       mesh: [...]           # optional MeSH headings
+#   brands:
+#     <key>:
+#       terms: [...]          # brand spellings that trigger it
+#       generic: [...]        # generic concepts added when triggered
+#       manufacturer: <name>
+# =====================================================================
+
+concepts:
+
+  # ------------------------------------------------------------------
+  # PROSTHODONTICS / ESTHETIC / RESTORATIVE
+  # ------------------------------------------------------------------
+  veneers:
+    specialty: esthetic_dentistry
+    terms:
+      - dental veneer
+      - porcelain veneer
+      - ceramic veneer
+      - laminate veneer
+      - porcelain laminate veneer
+      - ceramic laminate
+    mesh: ["Dental Veneers"]
+
+  veneers_failure:
+    specialty: esthetic_dentistry
+    terms:
+      - veneer failure
+      - ceramic veneer failure
+      - porcelain veneer failure
+      - veneer debonding
+      - veneer fracture
+      - veneer survival
+      - veneer longevity
+
+  crowns:
+    specialty: prosthodontics
+    terms:
+      - dental crown
+      - single crown
+      - full coverage restoration
+      - full-coverage crown
+      - complete crown
+    mesh: ["Crowns"]
+
+  fixed_partial_denture:
+    specialty: prosthodontics
+    terms:
+      - fixed partial denture
+      - fixed dental prosthesis
+      - dental bridge
+      - FPD
+      - FDP
+    mesh: ["Denture, Partial, Fixed"]
+
+  removable_prosthodontics:
+    specialty: prosthodontics
+    terms:
+      - removable partial denture
+      - complete denture
+      - overdenture
+      - removable dental prosthesis
+    mesh: ["Denture, Partial, Removable", "Denture, Complete"]
+
+  inlay_onlay:
+    specialty: restorative
+    terms:
+      - inlay
+      - onlay
+      - partial coverage restoration
+      - overlay restoration
+      - endocrown
+
+  tooth_preparation:
+    specialty: prosthodontics
+    terms:
+      - tooth preparation
+      - abutment preparation
+      - preparation design
+      - finish line
+      - margin design
+      - minimally invasive preparation
+
+  # ------------------------------------------------------------------
+  # CERAMICS / BIOMATERIALS
+  # ------------------------------------------------------------------
+  lithium_disilicate:
+    specialty: biomaterials
+    terms:
+      - lithium disilicate
+      - lithium-disilicate
+      - lithium disilicate glass ceramic
+      - glass-ceramic
+      - LS2
+
+  zirconia:
+    specialty: biomaterials
+    terms:
+      - zirconia
+      - zirconium dioxide
+      - yttria stabilized zirconia
+      - yttria-stabilized tetragonal zirconia
+      - Y-TZP
+      - monolithic zirconia
+      - translucent zirconia
+
+  feldspathic:
+    specialty: biomaterials
+    terms:
+      - feldspathic ceramic
+      - feldspathic porcelain
+      - refractory die
+
+  resin_composite:
+    specialty: restorative
+    terms:
+      - resin composite
+      - composite resin
+      - direct composite
+      - bulk fill composite
+      - nanohybrid composite
+    mesh: ["Composite Resins"]
+
+  hybrid_ceramic:
+    specialty: biomaterials
+    terms:
+      - hybrid ceramic
+      - resin nano ceramic
+      - polymer infiltrated ceramic network
+      - PICN
+      - resin matrix ceramic
+
+  # ------------------------------------------------------------------
+  # ADHESIVE DENTISTRY
+  # ------------------------------------------------------------------
+  bonding:
+    specialty: restorative
+    terms:
+      - adhesive bonding
+      - resin bonding
+      - adhesive cementation
+      - cementation
+      - resin cement
+      - dental bonding
+    mesh: ["Dental Bonding", "Resin Cements"]
+
+  universal_adhesive:
+    specialty: restorative
+    terms:
+      - universal adhesive
+      - multi-mode adhesive
+      - self-etch adhesive
+      - etch-and-rinse adhesive
+      - total-etch adhesive
+      - MDP
+      - 10-MDP
+
+  silane:
+    specialty: restorative
+    terms:
+      - silane
+      - silane coupling agent
+      - ceramic primer
+      - silanization
+      - heated silane
+
+  hydrofluoric_etching:
+    specialty: restorative
+    terms:
+      - hydrofluoric acid etching
+      - HF etching
+      - hydrofluoric acid
+      - ceramic etching
+      - ceramic surface treatment
+      - self-etching ceramic primer
+
+  immediate_dentin_sealing:
+    specialty: restorative
+    terms:
+      - immediate dentin sealing
+      - immediate dentine sealing
+      - IDS
+      - dentin sealing
+      - delayed dentin sealing
+      - DDS
+      - resin coating technique
+
+  airborne_particle_abrasion:
+    specialty: restorative
+    terms:
+      - airborne particle abrasion
+      - air abrasion
+      - sandblasting
+      - alumina blasting
+      - tribochemical silica coating
+
+  # ------------------------------------------------------------------
+  # IMPLANTOLOGY
+  # ------------------------------------------------------------------
+  dental_implant:
+    specialty: implantology
+    terms:
+      - implant
+      - dental implant
+      - endosseous implant
+      - implant supported prosthesis
+      - osseointegrated implant
+    mesh: ["Dental Implants", "Dental Implantation, Endosseous"]
+
+  peri_implant_disease:
+    specialty: implantology
+    terms:
+      - peri-implantitis
+      - peri-implant mucositis
+      - peri-implant disease
+      - peri-implant bone loss
+      - marginal bone loss
+    mesh: ["Peri-Implantitis"]
+
+  implant_loading:
+    specialty: implantology
+    terms:
+      - immediate loading
+      - early loading
+      - conventional loading
+      - immediate placement
+      - immediate implant placement
+      - delayed placement
+
+  bone_augmentation:
+    specialty: implantology
+    terms:
+      - guided bone regeneration
+      - GBR
+      - bone graft
+      - sinus lift
+      - sinus floor elevation
+      - ridge preservation
+      - ridge augmentation
+    mesh: ["Bone Regeneration", "Bone Transplantation"]
+
+  implant_abutment:
+    specialty: implantology
+    terms:
+      - implant abutment
+      - abutment connection
+      - conical connection
+      - internal hexagon
+      - platform switching
+      - screw loosening
+
+  # ------------------------------------------------------------------
+  # PERIODONTOLOGY
+  # ------------------------------------------------------------------
+  periodontitis:
+    specialty: periodontology
+    terms:
+      - periodontitis
+      - periodontal disease
+      - chronic periodontitis
+      - periodontal therapy
+      - stage grade periodontitis
+    mesh: ["Periodontitis", "Periodontal Diseases"]
+
+  nonsurgical_periodontal_therapy:
+    specialty: periodontology
+    terms:
+      - scaling and root planing
+      - non-surgical periodontal therapy
+      - subgingival instrumentation
+      - periodontal debridement
+    mesh: ["Dental Scaling", "Root Planing"]
+
+  soft_tissue_grafting:
+    specialty: periodontology
+    terms:
+      - connective tissue graft
+      - free gingival graft
+      - coronally advanced flap
+      - gingival recession coverage
+      - root coverage
+    mesh: ["Gingival Recession"]
+
+  crown_lengthening:
+    specialty: periodontology
+    terms:
+      - crown lengthening
+      - biologic width
+      - supracrestal tissue attachment
+      - esthetic crown lengthening
+
+  # ------------------------------------------------------------------
+  # ENDODONTICS
+  # ------------------------------------------------------------------
+  root_canal_treatment:
+    specialty: endodontics
+    terms:
+      - root canal treatment
+      - endodontic treatment
+      - root canal therapy
+      - nonsurgical root canal
+      - retreatment
+    mesh: ["Root Canal Therapy"]
+
+  irrigation:
+    specialty: endodontics
+    terms:
+      - sodium hypochlorite
+      - EDTA
+      - chlorhexidine irrigation
+      - endodontic irrigation
+      - ultrasonic activation
+      - passive ultrasonic irrigation
+
+  obturation:
+    specialty: endodontics
+    terms:
+      - root canal obturation
+      - gutta-percha
+      - bioceramic sealer
+      - calcium silicate sealer
+      - single cone obturation
+    mesh: ["Root Canal Obturation"]
+
+  vital_pulp_therapy:
+    specialty: endodontics
+    terms:
+      - vital pulp therapy
+      - pulp capping
+      - direct pulp cap
+      - partial pulpotomy
+      - full pulpotomy
+      - MTA
+      - mineral trioxide aggregate
+      - calcium silicate cement
+
+  post_and_core:
+    specialty: endodontics
+    terms:
+      - post and core
+      - fiber post
+      - glass fiber post
+      - endodontically treated tooth
+      - ferrule effect
+
+  # ------------------------------------------------------------------
+  # ORTHODONTICS
+  # ------------------------------------------------------------------
+  clear_aligners:
+    specialty: orthodontics
+    terms:
+      - clear aligner
+      - clear aligner therapy
+      - thermoplastic aligner
+      - removable aligner
+
+  fixed_appliance:
+    specialty: orthodontics
+    terms:
+      - fixed appliance
+      - orthodontic bracket
+      - self-ligating bracket
+      - archwire
+      - bonded bracket
+
+  orthodontic_anchorage:
+    specialty: orthodontics
+    terms:
+      - temporary anchorage device
+      - TAD
+      - mini-screw
+      - miniscrew implant
+      - skeletal anchorage
+
+  orthodontic_retention:
+    specialty: orthodontics
+    terms:
+      - orthodontic retention
+      - retainer
+      - fixed retainer
+      - relapse
+      - post-treatment stability
+
+  # ------------------------------------------------------------------
+  # PEDIATRIC DENTISTRY
+  # ------------------------------------------------------------------
+  caries_management_children:
+    specialty: pediatric_dentistry
+    terms:
+      - early childhood caries
+      - silver diamine fluoride
+      - SDF
+      - hall technique
+      - stainless steel crown
+      - atraumatic restorative treatment
+      - ART
+
+  pediatric_behavior:
+    specialty: pediatric_dentistry
+    terms:
+      - behaviour management
+      - behavior management
+      - nitrous oxide sedation
+      - dental anxiety children
+      - papoose
+
+  molar_incisor_hypomineralisation:
+    specialty: pediatric_dentistry
+    terms:
+      - molar incisor hypomineralisation
+      - molar incisor hypomineralization
+      - MIH
+      - enamel hypomineralisation
+
+  # ------------------------------------------------------------------
+  # ORAL SURGERY / ORAL MEDICINE
+  # ------------------------------------------------------------------
+  third_molar:
+    specialty: oral_surgery
+    terms:
+      - third molar
+      - wisdom tooth
+      - impacted third molar
+      - surgical extraction
+      - coronectomy
+    mesh: ["Molar, Third", "Tooth, Impacted"]
+
+  extraction_complications:
+    specialty: oral_surgery
+    terms:
+      - dry socket
+      - alveolar osteitis
+      - post-extraction bleeding
+      - trismus
+      - nerve injury
+
+  mronj:
+    specialty: oral_medicine
+    terms:
+      - medication-related osteonecrosis of the jaw
+      - MRONJ
+      - bisphosphonate related osteonecrosis
+      - BRONJ
+      - antiresorptive
+
+  oral_mucosal_lesions:
+    specialty: oral_medicine
+    terms:
+      - oral lichen planus
+      - recurrent aphthous stomatitis
+      - oral candidiasis
+      - leukoplakia
+      - oral potentially malignant disorder
+      - burning mouth syndrome
+
+  # ------------------------------------------------------------------
+  # TMD / OCCLUSION
+  # ------------------------------------------------------------------
+  tmd:
+    specialty: tmd_occlusion
+    terms:
+      - temporomandibular disorder
+      - TMD
+      - temporomandibular joint disorder
+      - orofacial pain
+      - myofascial pain
+    mesh: ["Temporomandibular Joint Disorders"]
+
+  bruxism:
+    specialty: tmd_occlusion
+    terms:
+      - bruxism
+      - sleep bruxism
+      - awake bruxism
+      - tooth grinding
+      - occlusal splint
+      - stabilization splint
+    mesh: ["Bruxism"]
+
+  occlusion:
+    specialty: tmd_occlusion
+    terms:
+      - occlusion
+      - occlusal scheme
+      - centric relation
+      - vertical dimension of occlusion
+      - occlusal vertical dimension
+      - canine guidance
+      - group function
+
+  # ------------------------------------------------------------------
+  # DIGITAL DENTISTRY / AI / RADIOLOGY
+  # ------------------------------------------------------------------
+  intraoral_scanning:
+    specialty: digital_dentistry
+    terms:
+      - intraoral scanner
+      - intraoral scanning
+      - digital impression
+      - optical impression
+      - scan accuracy
+      - trueness precision
+
+  cad_cam:
+    specialty: digital_dentistry
+    terms:
+      - CAD/CAM
+      - computer aided design
+      - computer-aided manufacturing
+      - milled restoration
+      - chairside CAD CAM
+    mesh: ["Computer-Aided Design"]
+
+  additive_manufacturing:
+    specialty: digital_dentistry
+    terms:
+      - 3D printing
+      - additive manufacturing
+      - stereolithography
+      - digital light processing
+      - printed resin restoration
+
+  digital_smile_design:
+    specialty: esthetic_dentistry
+    terms:
+      - digital smile design
+      - smile design
+      - esthetic smile design
+      - aesthetic smile design
+      - facially driven treatment planning
+
+  guided_surgery:
+    specialty: digital_dentistry
+    terms:
+      - guided implant surgery
+      - static computer aided implant surgery
+      - dynamic navigation
+      - surgical guide
+      - fully guided surgery
+
+  dental_ai:
+    specialty: dental_ai
+    terms:
+      - artificial intelligence
+      - AI
+      - dental AI
+      - deep learning
+      - convolutional neural network
+      - machine learning
+      - automated detection
+      - computer-aided detection
+    mesh: ["Artificial Intelligence", "Deep Learning"]
+
+  ai_validation:
+    specialty: dental_ai
+    terms:
+      - external validation
+      - prospective validation
+      - diagnostic accuracy
+      - sensitivity specificity
+      - area under the curve
+      - AUC
+      - multicentre validation
+      - multicenter validation
+
+  cbct:
+    specialty: radiology
+    terms:
+      - CBCT
+      - cone beam computed tomography
+      - CBCT
+      - cone-beam CT
+      - dental volumetric tomography
+    mesh: ["Cone-Beam Computed Tomography"]
+
+  radiographic_diagnosis:
+    specialty: radiology
+    terms:
+      - bitewing radiograph
+      - periapical radiograph
+      - panoramic radiograph
+      - orthopantomogram
+      - radiographic caries detection
+
+  # ------------------------------------------------------------------
+  # PREVENTIVE
+  # ------------------------------------------------------------------
+  fluoride:
+    specialty: preventive_dentistry
+    terms:
+      - fluoride varnish
+      - topical fluoride
+      - fluoride toothpaste
+      - water fluoridation
+      - stannous fluoride
+    mesh: ["Fluorides, Topical", "Fluoridation"]
+
+  caries_prevention:
+    specialty: preventive_dentistry
+    terms:
+      - caries
+      - dental caries
+      - dental caries prevention
+      - pit and fissure sealant
+      - caries risk assessment
+      - remineralisation
+      - remineralization
+      - CPP-ACP
+    mesh: ["Pit and Fissure Sealants", "Dental Caries"]
+
+  tooth_wear:
+    specialty: restorative
+    terms:
+      - tooth wear
+      - erosive tooth wear
+      - dental erosion
+      - attrition
+      - abfraction
+      - rehabilitation of worn dentition
+
+  tooth_whitening:
+    specialty: esthetic_dentistry
+    terms:
+      - tooth whitening
+      - tooth bleaching
+      - carbamide peroxide
+      - hydrogen peroxide bleaching
+      - in-office bleaching
+    mesh: ["Tooth Bleaching"]
+
+  dentin_hypersensitivity:
+    specialty: restorative
+    terms:
+      - dentin hypersensitivity
+      - dentine hypersensitivity
+      - postoperative sensitivity
+      - post-operative sensitivity
+
+  # ------------------------------------------------------------------
+  # STUDY-DESIGN / OUTCOME HELPERS (used by PICO builder)
+  # ------------------------------------------------------------------
+  survival_outcome:
+    specialty: all
+    terms:
+      - survival rate
+      - success rate
+      - clinical longevity
+      - failure rate
+      - complication rate
+      - annual failure rate
+
+# =====================================================================
+# BRANDS
+# Brand -> generic mapping only. A brand term is added to a query ONLY
+# when the user names the brand. Generic searches are never narrowed to
+# a brand.
+# =====================================================================
+brands:
+
+  ips_emax:
+    terms: ["ips e.max", "ips emax", "e.max", "emax press", "emax cad"]
+    generic: [lithium_disilicate]
+    manufacturer: Ivoclar
+
+  ips_empress:
+    terms: ["ips empress", "empress"]
+    generic: [feldspathic]
+    manufacturer: Ivoclar
+
+  variolink:
+    terms: ["variolink", "variolink esthetic", "variolink n"]
+    generic: [bonding]
+    manufacturer: Ivoclar
+
+  monobond:
+    terms: ["monobond", "monobond plus", "monobond etch & prime", "monobond etch and prime"]
+    generic: [silane, hydrofluoric_etching]
+    manufacturer: Ivoclar
+
+  tetric:
+    terms: ["tetric", "tetric evoceram", "tetric prime"]
+    generic: [resin_composite]
+    manufacturer: Ivoclar
+
+  panavia:
+    terms: ["panavia", "panavia v5", "panavia sa"]
+    generic: [bonding]
+    manufacturer: Kuraray Noritake
+
+  clearfil:
+    terms: ["clearfil", "clearfil se bond", "clearfil universal bond"]
+    generic: [universal_adhesive]
+    manufacturer: Kuraray Noritake
+
+  katana:
+    terms: ["katana zirconia", "katana"]
+    generic: [zirconia]
+    manufacturer: Kuraray Noritake
+
+  relyx:
+    terms: ["relyx", "relyx ultimate", "relyx unicem"]
+    generic: [bonding]
+    manufacturer: 3M / Solventum
+
+  scotchbond:
+    terms: ["scotchbond", "scotchbond universal", "single bond universal"]
+    generic: [universal_adhesive]
+    manufacturer: 3M / Solventum
+
+  filtek:
+    terms: ["filtek", "filtek supreme", "filtek one"]
+    generic: [resin_composite]
+    manufacturer: 3M / Solventum
+
+  lava:
+    terms: ["lava", "lava plus", "lava esthetic"]
+    generic: [zirconia]
+    manufacturer: 3M / Solventum
+
+  nx3:
+    terms: ["nx3", "nx3 nexus"]
+    generic: [bonding]
+    manufacturer: Kerr
+
+  vitablocs:
+    terms: ["vitablocs", "vita enamic", "vita suprinity", "vita mark ii"]
+    generic: [feldspathic, hybrid_ceramic]
+    manufacturer: VITA
+
+  cerec:
+    terms: ["cerec", "cerec primescan", "cerec omnicam"]
+    generic: [cad_cam, intraoral_scanning]
+    manufacturer: Dentsply Sirona
+
+  trios:
+    terms: ["trios", "3shape trios"]
+    generic: [intraoral_scanning]
+    manufacturer: 3Shape
+
+  itero:
+    terms: ["itero", "itero element"]
+    generic: [intraoral_scanning]
+    manufacturer: Align Technology
+
+  invisalign:
+    terms: ["invisalign"]
+    generic: [clear_aligners]
+    manufacturer: Align Technology
+
+  straumann_blx:
+    terms: ["blx", "straumann blx", "bone level tapered", "slactive"]
+    generic: [dental_implant]
+    manufacturer: Straumann
+
+  nobel_active:
+    terms: ["nobelactive", "nobel active", "nobelparallel"]
+    generic: [dental_implant]
+    manufacturer: Nobel Biocare
+
+  biodentine:
+    terms: ["biodentine"]
+    generic: [vital_pulp_therapy]
+    manufacturer: Septodont
+
+  optibond:
+    terms: ["optibond", "optibond fl", "optibond universal"]
+    generic: [universal_adhesive]
+    manufacturer: Kerr
+
+# =====================================================================
+# Terms that must NEVER be auto-injected into a query, because they
+# silently convert a clinical question into a laboratory question.
+# The query expander refuses to add these unless the user typed them.
+# =====================================================================
+never_auto_expand:
+  - bond strength
+  - shear bond strength
+  - microtensile
+  - thermocycling
+  - finite element
+  - artificial saliva
+  - in vitro

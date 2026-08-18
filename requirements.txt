@@ -1,0 +1,32 @@
+# =====================================================================
+# Clinical Evidence Gateway — runtime + test dependencies
+# Pinned to exact versions for reproducible deployments.
+# =====================================================================
+
+# --- Web framework ---------------------------------------------------
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+
+# --- Validation / settings -------------------------------------------
+pydantic==2.10.4
+pydantic-settings==2.7.0
+
+# --- HTTP client (async, used for every upstream call) ---------------
+httpx==0.28.1
+
+# --- Configuration ---------------------------------------------------
+PyYAML==6.0.2
+python-dotenv==1.0.1
+
+# --- Tests -----------------------------------------------------------
+pytest==8.3.4
+pytest-asyncio==0.25.0
+anyio==4.7.0
+
+# NOTE: no HTML/XML third-party parser is required.
+#   * PubMed responses are parsed with xml.etree (stdlib)
+#   * manufacturer/guideline pages with html.parser (stdlib)
+# This is deliberate: fewer parsers is less attack surface for a service
+# that ingests remote documents.
+#
+# NOTE: SQLite is used via the stdlib sqlite3 module; no driver needed.

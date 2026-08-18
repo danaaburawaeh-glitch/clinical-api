@@ -1,0 +1,817 @@
+openapi: 3.1.0
+
+# =====================================================================
+# Clinical Evidence Safe Search — GPT Actions schema
+# =====================================================================
+# Paste this file into:
+#   GPT Builder -> Configure -> Actions -> Create new action -> Schema
+#
+# Before pasting, change `servers[0].url` to your deployed HTTPS base URL.
+#
+# This file is hand-maintained (rather than dumped from FastAPI) because
+# GPT Builder needs a flat, readable schema without $defs indirection.
+# `scripts/validate_openapi.py` checks it against the live application so
+# the two cannot drift apart silently — run it in CI.
+# =====================================================================
+
+info:
+  title: Clinical Evidence Safe Search
+  description: >
+    Evidence gateway for dentistry. Searches only approved scientific,
+    regulatory, professional, and manufacturer sources.
+    All source allowlisting and validation is enforced server-side, so the
+    model cannot widen the source set: a domain absent from the allowlist
+    can be neither fetched nor returned.
+
+    Key guarantees. (1) Manufacturer documents always come back as
+    MANUFACTURER_INFORMATION and can never be used to establish clinical
+    superiority. (2) Laboratory and bench studies always come back as
+    EARLY_PRECLINICAL with clinical_translation=uncertain. (3) Regulatory
+    status is never presented as clinical effectiveness, and FDA clearance
+    is never conflated with FDA approval. (4) Absent metadata is null,
+    never guessed. (5) Retracted work is flagged and excluded from the
+    recommendable set.
+  version: 1.0.0
+
+servers:
+  - url: https://evidence.example.com
+    description: Replace with your deployed HTTPS base URL
+
+paths:
+
+  /v1/evidence/search:
+    post:
+      operationId: searchClinicalEvidence
+      summary: Search trusted clinical and scientific dental evidence
+      description: >
+        Search PubMed, Europe PMC, approved professional guidelines,
+        and validated scholarly metadata. Use this for clinical questions,
+        comparisons, efficacy, safety, prognosis, diagnostic accuracy,
+        materials, techniques, and treatment protocols. Always use this,
+        not the manufacturer action, for any question about whether one
+        option is clinically better than another.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EvidenceSearchRequest'
+      responses:
+        '200':
+          description: Ranked clinical evidence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+        '401':
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/regulatory/search:
+    post:
+      operationId: searchRegulatoryEvidence
+      summary: Search regulatory sources
+      description: >
+        Search approved regulatory sources such as FDA, openFDA, SFDA,
+        MHRA, the European Commission, Health Canada and TGA.
+        Returns regulatory status only. Regulatory status is not clinical
+        effectiveness: FDA "clearance" (510(k) substantial equivalence)
+        and FDA "approval" (PMA) are different determinations and must
+        never be used interchangeably.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegulatorySearchRequest'
+      responses:
+        '200':
+          description: Regulatory records
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+        '401':
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/manufacturer/search:
+    post:
+      operationId: getManufacturerDocument
+      summary: Retrieve official manufacturer documentation
+      description: >
+        Search only official manufacturer domains for IFUs, technical
+        manuals, safety documents, composition, indications,
+        contraindications, compatibility and application protocols.
+        Manufacturer documents must not be treated as independent
+        evidence of clinical superiority. Every record returned by this
+        operation has evidence_level = MANUFACTURER_INFORMATION.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManufacturerSearchRequest'
+      responses:
+        '200':
+          description: Official manufacturer information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+        '401':
+          description: Invalid or missing API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/source/verify:
+    post:
+      operationId: verifyClinicalSource
+      summary: Verify whether a source is approved
+      description: >
+        Check whether a URL is on the server-side hard allowlist, what
+        category of source it is, and what it may and may not be used
+        for. Use this whenever a user pastes a link or names a website.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url:
+                  type: string
+                  description: Absolute URL to check.
+              required:
+                - url
+      responses:
+        '200':
+          description: Source validation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceVerifyResponse'
+
+  /health:
+    get:
+      operationId: healthCheck
+      summary: Service health
+      security: []
+      responses:
+        '200':
+          description: Health status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ok, degraded, error]
+                  version:
+                    type: string
+                  service:
+                    type: string
+                  environment:
+                    type: string
+                  allowlisted_domains:
+                    type: integer
+                  checked_at:
+                    type: string
+
+components:
+
+  securitySchemes:
+    ClinicalAPIKey:
+      type: apiKey
+      in: header
+      name: X-Clinical-Key
+
+  schemas:
+
+    # ================================================================
+    # Requests
+    # ================================================================
+    EvidenceSearchRequest:
+      type: object
+      properties:
+
+        query:
+          type: string
+          minLength: 2
+          maxLength: 800
+          description: The clinical question, in English, as specific as possible.
+
+        specialty:
+          type: string
+          enum:
+            - prosthodontics
+            - restorative
+            - esthetic_dentistry
+            - implantology
+            - periodontology
+            - endodontics
+            - orthodontics
+            - pediatric_dentistry
+            - oral_surgery
+            - oral_medicine
+            - oral_pathology
+            - radiology
+            - tmd_occlusion
+            - digital_dentistry
+            - dental_ai
+            - biomaterials
+            - preventive_dentistry
+            - general_dentistry
+            - other
+
+        question_type:
+          type: string
+          enum:
+            - therapy
+            - diagnosis
+            - prognosis
+            - prevention
+            - safety
+            - materials
+            - technique
+            - comparison
+            - guideline
+            - systematic_review
+            - other
+
+        population:
+          type: string
+          maxLength: 300
+          description: PICO — the patient group or clinical situation.
+
+        intervention:
+          type: string
+          maxLength: 300
+          description: PICO — the treatment, material or technique of interest.
+
+        comparator:
+          type: string
+          maxLength: 300
+          description: PICO — the alternative it is being compared against.
+
+        outcome:
+          type: string
+          maxLength: 300
+          description: >
+            PICO — the outcome(s) of interest. Multiple outcomes may be
+            separated by slashes or commas.
+
+        date_from:
+          type: integer
+          minimum: 1900
+          maximum: 2100
+
+        date_to:
+          type: integer
+          minimum: 1900
+          maximum: 2100
+
+        study_designs:
+          type: array
+          items:
+            type: string
+            enum:
+              - guideline
+              - consensus
+              - systematic_review
+              - meta_analysis
+              - randomized_controlled_trial
+              - clinical_trial
+              - cohort
+              - case_control
+              - cross_sectional
+              - diagnostic_accuracy
+              - laboratory
+              - case_series
+              - case_report
+
+        include_guidelines:
+          type: boolean
+          default: true
+          description: Also search approved professional guideline bodies.
+
+        max_results:
+          type: integer
+          minimum: 1
+          maximum: 30
+          default: 10
+
+      required:
+        - query
+
+    RegulatorySearchRequest:
+      type: object
+      properties:
+
+        query:
+          type: string
+          minLength: 2
+          maxLength: 400
+
+        authority:
+          type: string
+          default: ANY_APPROVED
+          enum:
+            - FDA
+            - SFDA
+            - MHRA
+            - EU
+            - Health_Canada
+            - TGA
+            - ANY_APPROVED
+
+        product_name:
+          type: string
+          maxLength: 200
+
+        manufacturer:
+          type: string
+          maxLength: 200
+
+        regulatory_type:
+          type: string
+          default: any
+          enum:
+            - clearance
+            - approval
+            - registration
+            - classification
+            - recall
+            - safety_alert
+            - adverse_event
+            - indication
+            - labeling
+            - any
+
+        identifier:
+          type: string
+          maxLength: 64
+          description: >
+            A regulatory identifier such as a 510(k) number (K251002),
+            a De Novo number (DEN200001) or a PMA number (P123456).
+            When supplied, an exact lookup is attempted first.
+
+        max_results:
+          type: integer
+          minimum: 1
+          maximum: 20
+          default: 10
+
+      required:
+        - query
+
+    ManufacturerSearchRequest:
+      type: object
+      properties:
+
+        query:
+          type: string
+          minLength: 2
+          maxLength: 400
+
+        manufacturer:
+          type: string
+          maxLength: 120
+          description: >
+            Manufacturer name. Must resolve to an allowlisted official
+            domain; distributor and reseller sites are never searched.
+
+        product_name:
+          type: string
+          maxLength: 200
+
+        document_type:
+          type: string
+          default: any
+          enum:
+            - IFU
+            - technical_manual
+            - safety_data
+            - composition
+            - indication
+            - contraindication
+            - surface_treatment
+            - cementation_protocol
+            - compatibility
+            - curing_protocol
+            - storage
+            - product_specification
+            - any
+
+        max_results:
+          type: integer
+          minimum: 1
+          maximum: 15
+          default: 5
+
+      required:
+        - query
+
+    # ================================================================
+    # Responses
+    # ================================================================
+    SearchResult:
+      type: object
+      properties:
+
+        title:
+          type: string
+
+        authors:
+          type: array
+          items:
+            type: string
+
+        publication_year:
+          type: [integer, "null"]
+
+        journal:
+          type: [string, "null"]
+
+        source:
+          type: string
+          description: The provider that supplied this record.
+
+        source_domain:
+          type: string
+          description: The allowlisted domain this record belongs to.
+
+        source_category:
+          type: [string, "null"]
+          description: >
+            scientific_database, journal, professional_organization,
+            guideline_body, regulator, standards_body, manufacturer,
+            bibliographic_metadata, clinical_trial_registry or
+            public_health_authority.
+
+        trust_tier:
+          type: [string, "null"]
+          description: >
+            Source reliability tier. This is NOT evidence strength — a
+            case report indexed in PubMed sits in TIER_A_EVIDENCE and
+            remains low-level evidence.
+
+        providers:
+          type: array
+          items:
+            type: string
+          description: >
+            Every database this record was found in. Appearing in more
+            databases does NOT make a study stronger.
+
+        url:
+          type: [string, "null"]
+          description: >
+            Null when no allowlisted URL could be verified. Never cite a
+            record whose url is null and verified_source is false.
+
+        doi:
+          type: [string, "null"]
+
+        pmid:
+          type: [string, "null"]
+
+        pmcid:
+          type: [string, "null"]
+
+        evidence_type:
+          type: [string, "null"]
+
+        evidence_class:
+          type: [string, "null"]
+          description: >
+            Internal class: A1 guideline, A2 systematic review or
+            meta-analysis, A3 RCT, B1/B2 cohort, B3 case-control,
+            C1 cross-sectional or diagnostic accuracy, C2 case series,
+            C3 case report, D1 laboratory, D2 animal,
+            M manufacturer, R regulatory, U unclassified.
+
+        evidence_level:
+          type: string
+          enum:
+            - HIGH
+            - MODERATE
+            - LIMITED
+            - EARLY_PRECLINICAL
+            - GUIDELINE
+            - REGULATORY
+            - MANUFACTURER_INFORMATION
+            - UNCLASSIFIED
+
+        clinical_translation:
+          type: [string, "null"]
+          enum: [direct, indirect, uncertain, not_applicable, null]
+          description: >
+            "uncertain" marks laboratory/preclinical findings that must
+            not be reported as clinical outcomes.
+
+        abstract:
+          type: [string, "null"]
+
+        key_findings:
+          type: [string, "null"]
+
+        limitations:
+          type: [string, "null"]
+
+        verified_source:
+          type: boolean
+          description: >
+            False means the URL failed allowlist re-validation. Do not
+            use such a record to support a clinical claim.
+
+        journal_recognised:
+          type: [boolean, "null"]
+          description: >
+            Whether the journal is in the approved dental journal
+            registry. False is a caution, not a disqualification.
+
+        full_text_reviewed:
+          type: boolean
+          description: >
+            False means only metadata and abstract were retrieved. Never
+            claim to have read the full text when this is false.
+
+        open_access:
+          type: [boolean, "null"]
+
+        language:
+          type: [string, "null"]
+
+        mesh_terms:
+          type: array
+          items:
+            type: string
+
+        publication_types:
+          type: array
+          items:
+            type: string
+
+        retraction_warning:
+          type: boolean
+
+        integrity_status:
+          type: [string, "null"]
+          description: >
+            One of retracted, expression_of_concern, correction, erratum,
+            update, or null. These are NOT equivalent.
+
+        integrity_notes:
+          type: array
+          items:
+            type: string
+
+        regulatory_identifier:
+          type: [string, "null"]
+
+        regulatory_authority:
+          type: [string, "null"]
+
+        regulatory_pathway:
+          type: [string, "null"]
+
+        regulatory_status:
+          type: [string, "null"]
+
+        decision_date:
+          type: [string, "null"]
+
+        retrieved_at:
+          type: [string, "null"]
+
+        document_type:
+          type: [string, "null"]
+
+        manufacturer:
+          type: [string, "null"]
+
+        product:
+          type: [string, "null"]
+
+        document_version:
+          type: [string, "null"]
+          description: Reported only when literally present in the document.
+
+        document_date:
+          type: [string, "null"]
+
+        current_document_verified:
+          type: [boolean, "null"]
+          description: >
+            False means this could not be confirmed as the current
+            official revision. Say so rather than implying currency.
+
+        relevance_score:
+          type: [number, "null"]
+
+        ranking_explanation:
+          type: [string, "null"]
+
+        low_confidence_ranking:
+          type: boolean
+
+    FailedSource:
+      type: object
+      properties:
+        provider:
+          type: string
+        reason:
+          type: string
+        retryable:
+          type: boolean
+
+    ConflictReport:
+      type: object
+      properties:
+        conflict_detected:
+          type: boolean
+        status:
+          type: string
+          description: >
+            conflict_detected, no_conflict_detected,
+            possible_conflict_requires_clinical_review,
+            direction_of_effect_not_machine_readable, or
+            insufficient_high_tier_records_for_conflict_analysis.
+        agreement:
+          type: [string, "null"]
+        disagreement:
+          type: [string, "null"]
+        stronger_evidence:
+          type: [string, "null"]
+        possible_explanations:
+          type: array
+          items:
+            type: string
+        involved_records:
+          type: array
+          items:
+            type: string
+
+    ManufacturerEvidenceConflict:
+      type: object
+      properties:
+        conflict_detected:
+          type: boolean
+        manufacturer_position:
+          type: [string, "null"]
+        independent_evidence_position:
+          type: [string, "null"]
+        evidence_nature:
+          type: [string, "null"]
+        guidance:
+          type: [string, "null"]
+
+    SearchResponse:
+      type: object
+      properties:
+
+        query:
+          type: string
+
+        expanded_query:
+          type: [string, "null"]
+
+        result_count:
+          type: integer
+
+        searched_sources:
+          type: array
+          items:
+            type: string
+
+        successful_sources:
+          type: array
+          items:
+            type: string
+
+        failed_sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/FailedSource'
+
+        partial_results:
+          type: boolean
+          description: >
+            True when at least one provider failed. Say so in the answer;
+            do not present partial results as a complete search.
+
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchResult'
+
+        evidence_summary:
+          type: [string, "null"]
+          description: >
+            A structural, count-based description of the retrieved record
+            set. It deliberately contains no effect sizes, p-values,
+            confidence intervals, sample sizes or follow-up durations.
+
+        summary_requires_model_synthesis:
+          type: boolean
+          description: >
+            True means the backend could not summarise safely; synthesise
+            from the individual records instead.
+
+        evidence_conflict:
+          $ref: '#/components/schemas/ConflictReport'
+
+        manufacturer_evidence_conflict:
+          $ref: '#/components/schemas/ManufacturerEvidenceConflict'
+
+        warnings:
+          type: array
+          items:
+            type: string
+          description: Surface these to the user; they are safety-relevant.
+
+        insufficient_evidence:
+          type: boolean
+
+        excluded_count:
+          type: integer
+          description: Records excluded (retracted / expression of concern).
+
+        duplicates_merged:
+          type: integer
+
+        retrieved_at:
+          type: [string, "null"]
+
+        cache_hit:
+          type: boolean
+
+        request_id:
+          type: [string, "null"]
+
+        ranking_method:
+          type: [string, "null"]
+
+    SourceVerifyResponse:
+      type: object
+      properties:
+        allowed:
+          type: boolean
+        domain:
+          type: [string, "null"]
+        source_category:
+          type: string
+        trust_tier:
+          type: [string, "null"]
+        allowed_use:
+          type: string
+        forbidden_use:
+          type: [string, "null"]
+        reason:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: >
+                INVALID_API_KEY, INVALID_REQUEST, SOURCE_NOT_ALLOWED,
+                UPSTREAM_TIMEOUT, UPSTREAM_RATE_LIMIT, UPSTREAM_ERROR,
+                NO_RESULTS, PARSING_ERROR, RATE_LIMITED,
+                RESPONSE_TOO_LARGE, DISALLOWED_CONTENT_TYPE,
+                NOT_CONFIGURED or INTERNAL_ERROR.
+            message:
+              type: string
+            retryable:
+              type: boolean
+            request_id:
+              type: [string, "null"]
+
+security:
+  - ClinicalAPIKey: []
